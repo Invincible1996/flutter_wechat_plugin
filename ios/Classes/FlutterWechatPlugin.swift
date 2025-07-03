@@ -17,10 +17,11 @@ public class FlutterWechatPlugin: NSObject, FlutterPlugin, WXApiDelegate {
       result("iOS " + UIDevice.current.systemVersion)
     case "registerApp":
       if let args = call.arguments as? [String: Any],
-         let appId = args["appId"] as? String {
-        registerApp(appId: appId, result: result)
+         let appId = args["appId"] as? String,
+         let universalLink = args["universalLink"] as? String {
+        registerApp(appId: appId, universalLink: universalLink, result: result)
       } else {
-        result(FlutterError(code: "INVALID_ARGUMENT", message: "App ID is required", details: nil))
+        result(FlutterError(code: "INVALID_ARGUMENT", message: "App ID and Universal Link are required", details: nil))
       }
     case "isWechatInstalled":
       let isInstalled = WXApi.isWXAppInstalled()
@@ -64,9 +65,9 @@ public class FlutterWechatPlugin: NSObject, FlutterPlugin, WXApiDelegate {
     }
   }
   
-  private func registerApp(appId: String, result: @escaping FlutterResult) {
-    print("FlutterWechatPlugin: Registering WeChat app with ID: \(appId)")
-    let success = WXApi.registerApp(appId, universalLink: "")
+  private func registerApp(appId: String, universalLink: String, result: @escaping FlutterResult) {
+    print("FlutterWechatPlugin: Registering WeChat app with ID: \(appId) and Universal Link: \(universalLink)")
+    let success = WXApi.registerApp(appId, universalLink: universalLink)
     print("FlutterWechatPlugin: WeChat registration result: \(success)")
     result(success)
   }

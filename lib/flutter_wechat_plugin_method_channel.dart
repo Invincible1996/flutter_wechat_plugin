@@ -16,8 +16,8 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
   }
 
   @override
-  Future<bool> registerApp(String appId) async {
-    final result = await methodChannel.invokeMethod<bool>('registerApp', {'appId': appId});
+  Future<bool> registerApp({required String appId, required String universalLink}) async {
+    final result = await methodChannel.invokeMethod<bool>('registerApp', {'appId': appId, 'universalLink': universalLink});
     return result ?? false;
   }
 

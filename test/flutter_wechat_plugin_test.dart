@@ -17,12 +17,6 @@ class MockFlutterWechatPluginPlatform
   }
 
   @override
-  Future<bool> registerApp(String appId) {
-    // TODO: implement registerApp
-    throw UnimplementedError();
-  }
-
-  @override
   Future<bool> shareImage(String imagePath) {
     // TODO: implement shareImage
     throw UnimplementedError();
@@ -53,6 +47,13 @@ class MockFlutterWechatPluginPlatform
   @override
   Future<bool> shareNetworkImage(String imageUrl) {
     // TODO: implement shareNetworkImage
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> registerApp(
+      {required String appId, required String universalLink}) {
+    // TODO: implement registerApp
     throw UnimplementedError();
   }
 }

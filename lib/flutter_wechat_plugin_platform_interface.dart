@@ -27,7 +27,7 @@ abstract class FlutterWechatPluginPlatform extends PlatformInterface {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
 
-  Future<bool> registerApp(String appId) {
+  Future<bool> registerApp({required String appId, required String universalLink}) {
     throw UnimplementedError('registerApp() has not been implemented.');
   }
 

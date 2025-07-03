@@ -6,8 +6,8 @@ class FlutterWechatPlugin {
     return FlutterWechatPluginPlatform.instance.getPlatformVersion();
   }
 
-  Future<bool> registerApp(String appId) {
-    return FlutterWechatPluginPlatform.instance.registerApp(appId);
+  Future<bool> registerApp({required String appId, required String universalLink}) {
+    return FlutterWechatPluginPlatform.instance.registerApp(appId: appId, universalLink: universalLink);
   }
 
   Future<bool> isWechatInstalled() {
