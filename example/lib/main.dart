@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_wechat_plugin/flutter_wechat_plugin.dart';
@@ -56,7 +55,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> initWechat() async {
     try {
       print('Registering WeChat app with ID: $_appId');
-      final registerResult = await _flutterWechatPlugin.registerApp(_appId);
+      final registerResult = await _flutterWechatPlugin.registerApp(appId: _appId, universalLink: '');
       print('Registration result: $registerResult');
 
       final isInstalled = await _flutterWechatPlugin.isWechatInstalled();
@@ -191,14 +190,18 @@ class _MyAppState extends State<MyApp> {
         // 关闭加载对话框
         Navigator.of(currentContext).pop();
 
-        _showDialog('Share Network Image', success ? 'Success' : 'Failed');
+        if (mounted) {
+          _showDialog('Share Network Image', success ? 'Success' : 'Failed');
+        }
       }
     } catch (e) {
       // 检查context是否仍然有效
       if (mounted) {
         // 关闭加载对话框
         Navigator.of(currentContext).pop();
-        _showDialog('Share Network Image Failed', e.toString());
+        if (mounted) {
+          _showDialog('Share Network Image Failed', e.toString());
+        }
       }
     }
   }
