@@ -9,16 +9,17 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
   final methodChannel = const MethodChannel('flutter_wechat_plugin');
-  
+
   /// The event channel used to listen for WeChat response events.
   @visibleForTesting
-  final eventChannel = const EventChannel('flutter_wechat_plugin/response_event');
-  
+  final eventChannel =
+      const EventChannel('flutter_wechat_plugin/response_event');
+
   MethodChannelFlutterWechatPlugin() {
     methodChannel.setMethodCallHandler(_handleMethodCall);
     _initEventChannel();
   }
-  
+
   void _initEventChannel() {
     eventChannel.receiveBroadcastStream().listen((dynamic event) {
       if (event is Map) {
@@ -27,11 +28,12 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
       }
     });
   }
-  
+
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'onWeChatResponse':
-        final Map<String, dynamic> event = Map<String, dynamic>.from(call.arguments);
+        final Map<String, dynamic> event =
+            Map<String, dynamic>.from(call.arguments);
         FlutterWechatPlugin.handleResponseEvent(event);
         break;
       default:
@@ -44,13 +46,16 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
 
   @override
   Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
+    final version =
+        await methodChannel.invokeMethod<String>('getPlatformVersion');
     return version;
   }
 
   @override
-  Future<bool> registerApp({required String appId, required String universalLink}) async {
-    final result = await methodChannel.invokeMethod<bool>('registerApp', {'appId': appId, 'universalLink': universalLink});
+  Future<bool> registerApp(
+      {required String appId, required String universalLink}) async {
+    final result = await methodChannel.invokeMethod<bool>(
+        'registerApp', {'appId': appId, 'universalLink': universalLink});
     return result ?? false;
   }
 
@@ -60,16 +65,24 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
     return result ?? false;
   }
 
-
   @override
   Future<bool> shareNetworkImage(String imageUrl) async {
-    final result = await methodChannel.invokeMethod<bool>('shareNetworkImage', {'imageUrl': imageUrl});
+    final result = await methodChannel
+        .invokeMethod<bool>('shareNetworkImage', {'imageUrl': imageUrl});
     return result ?? false;
   }
 
   @override
   Future<bool> shareNetworkImageToScene(String imageUrl, int scene) async {
-    final result = await methodChannel.invokeMethod<bool>('shareNetworkImageToScene', {'imageUrl': imageUrl, 'scene': scene});
+    final result = await methodChannel.invokeMethod<bool>(
+        'shareNetworkImageToScene', {'imageUrl': imageUrl, 'scene': scene});
+    return result ?? false;
+  }
+
+  @override
+  Future<bool> shareImage(String imagePath) async {
+    final result = await methodChannel
+        .invokeMethod<bool>('shareImage', {'imagePath': imagePath});
     return result ?? false;
   }
 
@@ -83,12 +96,16 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
 
   @override
   Future<bool> shareText(String text) async {
-    final result = await methodChannel.invokeMethod<bool>('shareText', {'text': text});
+    final result =
+        await methodChannel.invokeMethod<bool>('shareText', {'text': text});
     return result ?? false;
   }
 
   @override
-  Future<bool> shareLink({required String url, required String title, required String description}) async {
+  Future<bool> shareLink(
+      {required String url,
+      required String title,
+      required String description}) async {
     final result = await methodChannel.invokeMethod<bool>('shareLink', {
       'url': url,
       'title': title,
@@ -98,7 +115,10 @@ class MethodChannelFlutterWechatPlugin extends FlutterWechatPluginPlatform {
   }
 
   @override
-  Future<bool> openMiniProgram({required String username, required String path, int miniProgramType = 0}) async {
+  Future<bool> openMiniProgram(
+      {required String username,
+      required String path,
+      int miniProgramType = 0}) async {
     final result = await methodChannel.invokeMethod<bool>('openMiniProgram', {
       'username': username,
       'path': path,

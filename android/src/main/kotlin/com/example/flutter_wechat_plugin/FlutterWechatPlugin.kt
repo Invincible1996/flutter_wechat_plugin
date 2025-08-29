@@ -45,7 +45,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
         }
     }
   }
-  
+
   private lateinit var channel : MethodChannel
   private lateinit var context: Context
   private var pendingLoginResult: Result? = null
@@ -106,6 +106,14 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
           result.error("INVALID_ARGUMENT", "Username and path are required", null)
         }
       }
+      "shareImage" -> {
+        val imagePath = call.argument<String>("imagePath")
+        if (imagePath != null) {
+          shareLocalImage(imagePath, result)
+        } else {
+          result.error("INVALID_ARGUMENT", "Image path is required", null)
+        }
+      }
       else -> {
         result.notImplemented()
       }
@@ -128,7 +136,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
 
   override fun onResp(resp: BaseResp) {
     Log.d("FlutterWechatPlugin", "onResp: ${resp.type}, errCode: ${resp.errCode}")
-    
+
     when (resp.type) {
       1 -> { // WeChat login response
         if (resp is SendAuth.Resp) {
@@ -185,7 +193,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
     val req = SendAuth.Req()
     req.scope = "snsapi_userinfo"
     req.state = "wechat_sdk_demo_test"
-    
+
     val success = wxApi!!.sendReq(req)
     if (success) {
       // Store result to use in callback
@@ -204,7 +212,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
       result.error("NOT_REGISTERED", "WeChat app is not registered", null)
       return
     }
-    
+
     CoroutineScope(Dispatchers.IO).launch {
       try {
         val bitmap = downloadImage(imageUrl)
@@ -224,7 +232,29 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
       }
     }
   }
-  
+
+  }
+  }
+
+  private fun shareLocalImage(imagePath: String, result: Result) {
+    val file = File(imagePath)
+    if (!file.exists()) {
+      result.error("FILE_NOT_FOUND", "Image file not found at path: $imagePath", null)
+      return
+    }
+
+    try {
+      val bitmap = BitmapFactory.decodeFile(imagePath)
+      if (bitmap == null) {
+        result.error("DECODE_FAILED", "Failed to decode image file", null)
+        return
+      }
+      shareDownloadedImage(bitmap, SendMessageToWX.Req.WXSceneSession, result)
+    } catch (e: Exception) {
+      result.error("SHARE_ERROR", "Failed to share local image: ${e.message}", null)
+    }
+  }
+
   private fun downloadImage(imageUrl: String): Bitmap? {
     return try {
       val url = URL(imageUrl)
@@ -238,22 +268,22 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
       null
     }
   }
-  
+
   private fun shareDownloadedImage(bitmap: Bitmap, scene: Int, result: Result) {
     try {
       val imgObj = WXImageObject(bitmap)
-      
+
       val msg = WXMediaMessage()
       msg.mediaObject = imgObj
-      
+
       val thumbBmp = Bitmap.createScaledBitmap(bitmap, 150, 150, true)
       msg.thumbData = bmpToByteArray(thumbBmp, true)
-      
+
       val req = SendMessageToWX.Req()
       req.transaction = buildTransaction("img")
       req.message = msg
       req.scene = scene
-      
+
       val success = wxApi?.sendReq(req) ?: false
       result.success(success)
     } catch (e: Exception) {
@@ -281,12 +311,12 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
       result.error("NOT_REGISTERED", "WeChat API not registered", null)
       return
     }
-    
+
     if (!wxApi!!.isWXAppInstalled) {
       result.error("NOT_INSTALLED", "WeChat app is not installed", null)
       return
     }
-    
+
     val req = WXLaunchMiniProgram.Req()
     req.userName = username // 小程序原始id
     req.path = path // 拉起小程序页面的可带参路径，不填默认拉起小程序首页
@@ -295,7 +325,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
       2 -> WXLaunchMiniProgram.Req.MINIPROGRAM_TYPE_PREVIEW
       else -> WXLaunchMiniProgram.Req.MINIPTOGRAM_TYPE_RELEASE
     } // 可选打开 开发版，体验版和正式版
-    
+
     val success = wxApi!!.sendReq(req)
     result.success(success)
   }
@@ -303,21 +333,21 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
   private fun handleWeChatLoginResponse(resp: SendAuth.Resp) {
     val result = pendingLoginResult
     pendingLoginResult = null
-    
+
     Log.d("FlutterWechatPlugin", "WeChat login response: errCode=${resp.errCode}, code=${resp.code}")
-    
+
     val eventData = mutableMapOf<String, Any?>(
       "type" to "auth",
       "errCode" to resp.errCode
     )
-    
+
     when (resp.errCode) {
       0 -> { // Success
         eventData["code"] = resp.code
         eventData["state"] = resp.state
         eventData["lang"] = resp.lang
         eventData["country"] = resp.country
-        
+
         result?.success(mapOf(
           "code" to resp.code,
           "state" to resp.state,
@@ -338,7 +368,7 @@ class FlutterWechatPlugin: FlutterPlugin, MethodCallHandler, IWXAPIEventHandler 
         result?.error("LOGIN_FAILED", "Login failed with error code: ${resp.errCode}", null)
       }
     }
-    
+
     channel.invokeMethod("onWeChatResponse", eventData)
   }
 

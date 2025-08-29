@@ -23,7 +23,7 @@ typedef void(^WeChatURLHandler)(void);
     sharedInstance = instance; // Set static instance
     [registrar addMethodCallDelegate:instance channel:channel];
     [registrar addApplicationDelegate:instance];
-    
+
     // Register event channel for response events
     FlutterEventChannel* eventChannel = [FlutterEventChannel
                                         eventChannelWithName:@"flutter_wechat_plugin/response_event"
@@ -51,6 +51,8 @@ typedef void(^WeChatURLHandler)(void);
         [self shareLink:call result:result];
     } else if ([@"openMiniProgram" isEqualToString:call.method]) {
         [self openMiniProgram:call result:result];
+    } else if ([@"shareImage" isEqualToString:call.method]) {
+        [self shareLocalImage:call result:result];
     } else {
         result(FlutterMethodNotImplemented);
     }
@@ -80,29 +82,29 @@ typedef void(^WeChatURLHandler)(void);
 
 - (void)wechatLogin:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
     if (![WXApi isWXAppInstalled]) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_INSTALLED" 
-                                   message:@"WeChat is not installed" 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_INSTALLED"
+                                   message:@"WeChat is not installed"
                                    details:nil]);
         return;
     }
-    
+
     self.pendingLoginResult = result;
-    
+
     SendAuthReq *req = [[SendAuthReq alloc] init];
     req.scope = @"snsapi_userinfo";
     req.state = @"flutter_wechat_plugin_state";
-    
+
     [WXApi sendReq:req completion:^(BOOL success) {
         if (!success) {
             self.pendingLoginResult = nil;
-            result([FlutterError errorWithCode:@"SEND_REQUEST_FAILED" 
-                                       message:@"Failed to send login request" 
+            result([FlutterError errorWithCode:@"SEND_REQUEST_FAILED"
+                                       message:@"Failed to send login request"
                                        details:nil]);
         }
     }];
@@ -137,7 +139,7 @@ typedef void(^WeChatURLHandler)(void);
         response[@"type"] = @"share";
         response[@"errCode"] = @(messageResp.errCode);
         if (messageResp.errStr) response[@"errStr"] = messageResp.errStr;
-        
+
         // Send the event to the stream
         [[self class] sendEventToDart:response];
     } else if ([resp isKindOfClass:[WXLaunchMiniProgramResp class]]) {
@@ -148,11 +150,11 @@ typedef void(^WeChatURLHandler)(void);
             @"errStr": miniProgramResp.errStr ?: @"",
             @"type": @"miniProgram"
         } mutableCopy];
-        
+
         if (miniProgramResp.extMsg) {
             miniProgramResult[@"extMsg"] = miniProgramResp.extMsg;
         }
-        
+
         [[self class] sendEventToDart:miniProgramResult];
     }
 }
@@ -206,27 +208,81 @@ static FlutterWechatPlugin* sharedInstance = nil;
 
 #pragma mark - Share Methods
 
+- (void)shareLocalImage:(FlutterMethodCall *)call result:(FlutterResult)result {
+    if (!self.isRegistered) {
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
+                                   details:nil]);
+        return;
+    }
+
+    NSString *imagePath = call.arguments[@"imagePath"];
+    if (!imagePath) {
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"Image path is required"
+                                   details:nil]);
+        return;
+    }
+
+    NSData *imageData = [NSData dataWithContentsOfFile:imagePath];
+    if (!imageData) {
+        result([FlutterError errorWithCode:@"FILE_NOT_FOUND"
+                                   message:[NSString stringWithFormat:@"Image file not found at path: %@", imagePath]
+                                   details:nil]);
+        return;
+    }
+
+    WXImageObject *imageObject = [WXImageObject object];
+    imageObject.imageData = imageData;
+
+    WXMediaMessage *message = [WXMediaMessage message];
+    message.mediaObject = imageObject;
+
+    // Create thumbnail
+    UIImage *image = [UIImage imageWithData:imageData];
+    if (image) {
+        CGSize thumbnailSize = CGSizeMake(100, 100);
+        UIGraphicsBeginImageContextWithOptions(thumbnailSize, NO, 0.0);
+        [image drawInRect:CGRectMake(0, 0, thumbnailSize.width, thumbnailSize.height)];
+        UIImage *thumbnailImage = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+
+        if (thumbnailImage) {
+            message.thumbData = UIImageJPEGRepresentation(thumbnailImage, 0.8);
+        }
+    }
+
+    SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
+    req.scene = WXSceneSession; // Default to session (friends)
+    req.message = message;
+    req.bText = NO;
+
+    [WXApi sendReq:req completion:^(BOOL success) {
+        result(@(success));
+    }];
+}
+
 - (void)shareText:(FlutterMethodCall *)call result:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
-    
+
     NSString *text = call.arguments[@"text"];
     if (!text) {
-        result([FlutterError errorWithCode:@"INVALID_ARGUMENT" 
-                                   message:@"Text is required" 
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"Text is required"
                                    details:nil]);
         return;
     }
-    
+
     SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
     req.scene = WXSceneSession; // Default to session (friends)
     req.bText = YES;
     req.text = text;
-    
+
     [WXApi sendReq:req completion:^(BOOL success) {
         result(@(success));
     }];
@@ -234,37 +290,37 @@ static FlutterWechatPlugin* sharedInstance = nil;
 
 - (void)shareNetworkImage:(FlutterMethodCall *)call result:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
-    
+
     NSString *imageUrl = call.arguments[@"imageUrl"];
     if (!imageUrl) {
-        result([FlutterError errorWithCode:@"INVALID_ARGUMENT" 
-                                   message:@"Image URL is required" 
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"Image URL is required"
                                    details:nil]);
         return;
     }
-    
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSData *imageData = [NSData dataWithContentsOfURL:[NSURL URLWithString:imageUrl]];
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
             if (!imageData) {
-                result([FlutterError errorWithCode:@"DOWNLOAD_FAILED" 
-                                           message:@"Failed to download image" 
+                result([FlutterError errorWithCode:@"DOWNLOAD_FAILED"
+                                           message:@"Failed to download image"
                                            details:nil]);
                 return;
             }
-            
+
             WXImageObject *imageObject = [WXImageObject object];
             imageObject.imageData = imageData;
-            
+
             WXMediaMessage *message = [WXMediaMessage message];
             message.mediaObject = imageObject;
-            
+
             // Create thumbnail
             UIImage *image = [UIImage imageWithData:imageData];
             if (image) {
@@ -273,17 +329,17 @@ static FlutterWechatPlugin* sharedInstance = nil;
                 [image drawInRect:CGRectMake(0, 0, thumbnailSize.width, thumbnailSize.height)];
                 UIImage *thumbnailImage = UIGraphicsGetImageFromCurrentImageContext();
                 UIGraphicsEndImageContext();
-                
+
                 if (thumbnailImage) {
                     message.thumbData = UIImageJPEGRepresentation(thumbnailImage, 0.8);
                 }
             }
-            
+
             SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
             req.scene = WXSceneSession; // Default to session (friends)
             req.message = message;
             req.bText = NO;
-            
+
             [WXApi sendReq:req completion:^(BOOL success) {
                 result(@(success));
             }];
@@ -293,22 +349,22 @@ static FlutterWechatPlugin* sharedInstance = nil;
 
 - (void)shareNetworkImageToScene:(FlutterMethodCall *)call result:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
-    
+
     NSString *imageUrl = call.arguments[@"imageUrl"];
     NSNumber *sceneNumber = call.arguments[@"scene"];
-    
+
     if (!imageUrl) {
-        result([FlutterError errorWithCode:@"INVALID_ARGUMENT" 
-                                   message:@"Image URL is required" 
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"Image URL is required"
                                    details:nil]);
         return;
     }
-    
+
     enum WXScene scene = WXSceneSession; // Default to session
     if (sceneNumber) {
         int sceneInt = [sceneNumber intValue];
@@ -318,24 +374,24 @@ static FlutterWechatPlugin* sharedInstance = nil;
             scene = WXSceneFavorite; // Favorites
         }
     }
-    
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSData *imageData = [NSData dataWithContentsOfURL:[NSURL URLWithString:imageUrl]];
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
             if (!imageData) {
-                result([FlutterError errorWithCode:@"DOWNLOAD_FAILED" 
-                                           message:@"Failed to download image" 
+                result([FlutterError errorWithCode:@"DOWNLOAD_FAILED"
+                                           message:@"Failed to download image"
                                            details:nil]);
                 return;
             }
-            
+
             WXImageObject *imageObject = [WXImageObject object];
             imageObject.imageData = imageData;
-            
+
             WXMediaMessage *message = [WXMediaMessage message];
             message.mediaObject = imageObject;
-            
+
             // Create thumbnail
             UIImage *image = [UIImage imageWithData:imageData];
             if (image) {
@@ -344,17 +400,17 @@ static FlutterWechatPlugin* sharedInstance = nil;
                 [image drawInRect:CGRectMake(0, 0, thumbnailSize.width, thumbnailSize.height)];
                 UIImage *thumbnailImage = UIGraphicsGetImageFromCurrentImageContext();
                 UIGraphicsEndImageContext();
-                
+
                 if (thumbnailImage) {
                     message.thumbData = UIImageJPEGRepresentation(thumbnailImage, 0.8);
                 }
             }
-            
+
             SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
             req.scene = scene;
             req.message = message;
             req.bText = NO;
-            
+
             [WXApi sendReq:req completion:^(BOOL success) {
                 result(@(success));
             }];
@@ -364,36 +420,36 @@ static FlutterWechatPlugin* sharedInstance = nil;
 
 - (void)shareLink:(FlutterMethodCall *)call result:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
-    
+
     NSString *url = call.arguments[@"url"];
     NSString *title = call.arguments[@"title"];
     NSString *description = call.arguments[@"description"];
-    
+
     if (!url || !title) {
-        result([FlutterError errorWithCode:@"INVALID_ARGUMENT" 
-                                   message:@"URL and title are required" 
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"URL and title are required"
                                    details:nil]);
         return;
     }
-    
+
     WXWebpageObject *webpageObject = [WXWebpageObject object];
     webpageObject.webpageUrl = url;
-    
+
     WXMediaMessage *message = [WXMediaMessage message];
     message.title = title;
     message.description = description ?: @"";
     message.mediaObject = webpageObject;
-    
+
     SendMessageToWXReq *req = [[SendMessageToWXReq alloc] init];
     req.scene = WXSceneSession; // Default to session (friends)
     req.message = message;
     req.bText = NO;
-    
+
     [WXApi sendReq:req completion:^(BOOL success) {
         result(@(success));
     }];
@@ -401,23 +457,23 @@ static FlutterWechatPlugin* sharedInstance = nil;
 
 - (void)openMiniProgram:(FlutterMethodCall *)call result:(FlutterResult)result {
     if (!self.isRegistered) {
-        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED" 
-                                   message:@"WeChat is not registered. Call registerApp first." 
+        result([FlutterError errorWithCode:@"WECHAT_NOT_REGISTERED"
+                                   message:@"WeChat is not registered. Call registerApp first."
                                    details:nil]);
         return;
     }
-    
+
     NSString *username = call.arguments[@"username"];
     NSString *path = call.arguments[@"path"];
     NSNumber *miniProgramTypeNumber = call.arguments[@"miniProgramType"];
-    
+
     if (!username) {
-        result([FlutterError errorWithCode:@"INVALID_ARGUMENT" 
-                                   message:@"Username is required" 
+        result([FlutterError errorWithCode:@"INVALID_ARGUMENT"
+                                   message:@"Username is required"
                                    details:nil]);
         return;
     }
-    
+
     // Convert miniProgramType from int to WXMiniProgramType
     WXMiniProgramType miniProgramType = WXMiniProgramTypeRelease; // Default
     if (miniProgramTypeNumber) {
@@ -428,12 +484,12 @@ static FlutterWechatPlugin* sharedInstance = nil;
             miniProgramType = WXMiniProgramTypePreview;
         }
     }
-    
+
     WXLaunchMiniProgramReq *launchMiniProgramReq = [WXLaunchMiniProgramReq object];
     launchMiniProgramReq.userName = username;
     launchMiniProgramReq.path = (path && ![path isEqual:[NSNull null]]) ? path : nil;
     launchMiniProgramReq.miniProgramType = miniProgramType;
-    
+
     [WXApi sendReq:launchMiniProgramReq completion:^(BOOL success) {
         result(@(success));
     }];

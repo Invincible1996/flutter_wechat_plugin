@@ -8,7 +8,8 @@ abstract class FlutterWechatPluginPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static FlutterWechatPluginPlatform _instance = MethodChannelFlutterWechatPlugin();
+  static FlutterWechatPluginPlatform _instance =
+      MethodChannelFlutterWechatPlugin();
 
   /// The default instance of [FlutterWechatPluginPlatform] to use.
   ///
@@ -27,7 +28,8 @@ abstract class FlutterWechatPluginPlatform extends PlatformInterface {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
 
-  Future<bool> registerApp({required String appId, required String universalLink}) {
+  Future<bool> registerApp(
+      {required String appId, required String universalLink}) {
     throw UnimplementedError('registerApp() has not been implemented.');
   }
 
@@ -35,13 +37,17 @@ abstract class FlutterWechatPluginPlatform extends PlatformInterface {
     throw UnimplementedError('isWechatInstalled() has not been implemented.');
   }
 
-
   Future<bool> shareNetworkImage(String imageUrl) {
     throw UnimplementedError('shareNetworkImage() has not been implemented.');
   }
 
   Future<bool> shareNetworkImageToScene(String imageUrl, int scene) {
-    throw UnimplementedError('shareNetworkImageToScene() has not been implemented.');
+    throw UnimplementedError(
+        'shareNetworkImageToScene() has not been implemented.');
+  }
+
+  Future<bool> shareImage(String imagePath) {
+    throw UnimplementedError('shareImage() has not been implemented.');
   }
 
   Future<Map<String, dynamic>?> wechatLogin() {
@@ -52,11 +58,17 @@ abstract class FlutterWechatPluginPlatform extends PlatformInterface {
     throw UnimplementedError('shareText() has not been implemented.');
   }
 
-  Future<bool> shareLink({required String url, required String title, required String description}) {
+  Future<bool> shareLink(
+      {required String url,
+      required String title,
+      required String description}) {
     throw UnimplementedError('shareLink() has not been implemented.');
   }
 
-  Future<bool> openMiniProgram({required String username, required String path, int miniProgramType = 0}) {
+  Future<bool> openMiniProgram(
+      {required String username,
+      required String path,
+      int miniProgramType = 0}) {
     throw UnimplementedError('openMiniProgram() has not been implemented.');
   }
 }
